@@ -1,0 +1,55 @@
+name: RLS regression
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: "Enable verbose debug logging"
+        type: boolean
+        default: false
+
+jobs:
+  rls-isolation:
+    name: User-owned table isolation probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Supabase client
+        run: bun add --no-save @supabase/supabase-js
+
+      - name: Run RLS regression probe
+        id: probe
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RLS_DEBUG: ${{ (inputs.debug || runner.debug == '1') && 'true' || 'false' }}
+          RLS_FAILURE_ARTIFACT: ${{ github.workspace }}/rls-regression-failures.json
+        run: node scripts/rls-regression.mjs 2>&1 | tee rls-regression.log
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rls-regression-failures-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            rls-regression-failures.json
+            rls-regression.log
+          if-no-files-found: warn
+          retention-days: 14

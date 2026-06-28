@@ -1,0 +1,21 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+
+export default defineConfig({
+  plugins: [
+    tanstackStart({
+      server: { entry: "server" },
+      serverFns: { disableCsrfMiddlewareWarning: true },
+    }),
+    react(),
+    tailwindcss(),
+  ],
+  resolve: {
+    alias: {
+      "@": `${process.cwd()}/src`,
+    },
+    tsconfigPaths: true,
+  },
+});
